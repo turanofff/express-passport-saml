@@ -43,6 +43,13 @@ router.use((req, res, next) => {
     next();
 });
 
+/** GET route just loads welcome message */
+router.get('/', (req, res, next) => {
+    const body = fs.readFileSync('./src/html/welcome.html', 'utf-8');
+    return res.status(200).send(body).end();
+});
+
+
 /** GET route stars authentication session with SAML Identity Provider */
 router.get('/login', passport.authenticate('saml', config.saml.options), (req, res, next) => {
     return res.redirect(`${config.frontend.baseURL}/${config.frontend.loginRoute}`);
