@@ -1,0 +1,11 @@
+<script>
+    const getUrlParam = (param) => new URL(window.location).searchParams.get(param);
+    const access_token = getUrlParam('access_token');
+    const frontend = getUrlParam('frontend');
+    const samlRoute = getUrlParam('saml');
+
+    if (window.opener == null) window.location = `${frontend}/${samlRoute}?access_token=${access_token}`;
+
+    window.opener.postMessage({access_token}, frontend);
+    window.close();
+</script>
