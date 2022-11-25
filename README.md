@@ -16,9 +16,9 @@ This project is based on Node.JS and Express + TypeScript
 
 ## Accessing application
 
-[GET] /login - endpoint for starting authentication session with SAML IDP
+`[GET]` `/login` - endpoint for starting authentication session with SAML IDP
 
-[POST] /login - endpoint for accepting authentication response from SAML IDP
+`[POST]` `/login` - endpoint for accepting authentication response from SAML IDP
 
 ## Tests
 
