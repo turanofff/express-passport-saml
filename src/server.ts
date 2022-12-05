@@ -57,10 +57,24 @@ router.get('/', (req, res, next) => {
 });
 
 
+/** Decodes URL safe chars into Base64 allowed chars */
+const urlDecodeBase64 = (input: string) => {
+    const b64Chars: { [index: string]: string } = { '-': '+', '_': '/', '.': '=' };
+    return decodeURIComponent(
+        Buffer.from(input).toString()
+          .split('')
+          .map(c => {
+            return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+          })
+          .join('')
+      ).replace(/[-_.]/g, (m: string) => b64Chars[m]);;
+  }
+  
 /** GET route stars authentication session with SAML Identity Provider */
 router.get('/login', (req:any, res:any, next:any) => {
     const state = req.query.state;
-    const challenge_code = req.query.challenge_code;
+    const challenge_code = urlDecodeBase64(req.query.challenge_code);
+    console.log(challenge_code)
     if (state && challenge_code) {
         userStateStorage.delete(state); // For testing purposes. Makes sure I can reuse state (not to be used in prod implementations)
         userStateStorage.set(state,{challenge_code, expires: new Date().getTime()+5*60*1000 }) // Set expiry to 5 mins from now
@@ -104,8 +118,10 @@ router.post('/token', (req, res, next) => {
     const auth_code = req.body.auth_code;
     const code_verifier = req.body.code_verifier;
     if (auth_code && code_verifier && authStorage.has(auth_code)) {
-        const incoming_code_verifier = crypto.createHash('sha256').update(code_verifier).digest('hex');
+        
+        const incoming_code_verifier = crypto.createHash('sha256').update(code_verifier).digest('base64');
         const stored_code_verifier = authStorage.get(auth_code)?.challenge_code;
+
         if (incoming_code_verifier === stored_code_verifier) {
             const access_token = authStorage.get(auth_code)?.access_token;
             authStorage.delete(auth_code);
