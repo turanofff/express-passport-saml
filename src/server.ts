@@ -145,7 +145,6 @@ setInterval(() => {
             authStorage.delete(key);
         }
       }
-
 }, 60*1000);
 
 httpServer.listen(config.server.port, () => console.info(`Server is running on port ${config.server.port}`));
