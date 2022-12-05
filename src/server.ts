@@ -3,10 +3,17 @@ import fs from 'fs';
 import express from 'express';
 import session from 'express-session';
 import passport from 'passport';
+import crypto from 'crypto';
 import config from './config/config';
 import './config/passport';
 
 const router = express();
+
+/** Stores state as a key and a challenge code for a given authentication request */
+const userStateStorage = new Map<string, { challenge_code: string, expires: number }>(); // TODO: Implement expiry mechanism
+
+/** Stores auth_code as a key; a challenge code and access token */
+const authStorage = new Map<string, { challenge_code: string, access_token?: string, expires: number}>(); // TODO: Implement expiry mechanism
 
 /** Server Handling */
 const httpServer = http.createServer(router);
@@ -51,13 +58,27 @@ router.get('/', (req, res, next) => {
 
 
 /** GET route stars authentication session with SAML Identity Provider */
-router.get('/login', passport.authenticate('saml', config.saml.options), (req, res, next) => {
-    return res.redirect(`${config.frontend.baseURL}/${config.frontend.loginRoute}`);
+router.get('/login', (req:any, res:any, next:any) => {
+    const state = req.query.state;
+    const challenge_code = req.query.challenge_code;
+    if (state && challenge_code) {
+        userStateStorage.delete(state); // For testing purposes. Makes sure I can reuse state (not to be used in prod implementations)
+        userStateStorage.set(state,{challenge_code, expires: new Date().getTime()+5*60*1000 }) // Set expiry to 5 mins from now
+
+        const samlOptions = {...config.saml.options, additionalParams: { RelayState: state } }
+        passport.authenticate('saml', samlOptions)(req, res, next);
+    } else {
+        const body = fs.readFileSync('./src/html/no-state-error.html', 'utf-8');
+        return res.status(403).send(body).end();
+    }
 });
 
 
 /** POST route handles response from SAML Identity Provider */
 router.post('/login', passport.authenticate('saml', config.saml.options), (req, res, next) => {
+    const state = req.body.RelayState; // this is how we get state parameter from SAML Response
+    const challenge_code = userStateStorage.get(state)?.challenge_code;
+
     const redirectionURL = 'complete';
     const userObject:any = req.user;
     // Creating demo bearer token
@@ -68,7 +89,42 @@ router.post('/login', passport.authenticate('saml', config.saml.options), (req, 
         signature: '3Yr6cayJai6LPPYe85i_WWx3cU'
     }
     const access_token=`${jwtObject.alg}.${jwtObject.payload}.${jwtObject.signature}`;
-    res.status(302).redirect(`${redirectionURL}?frontend=${config.frontend.baseURL}&saml=${config.frontend.samlRoute}&access_token=${access_token}`);
+    const auth_code = crypto.randomBytes(12).toString('hex');
+    if (challenge_code) {
+        userStateStorage.delete(state);
+        authStorage.set(auth_code, { challenge_code, access_token, expires: new Date().getTime()+5*60*1000});
+
+        res.status(302).redirect(`${redirectionURL}?frontend=${config.frontend.baseURL}&saml=${config.frontend.samlRoute}&auth_code=${auth_code}&state=${state}`);
+    } else {
+        const body = fs.readFileSync('./src/html/generic-error.html', 'utf-8');
+        return res.status(403).send(body).end();
+    }
+});
+
+router.post('/token', (req, res, next) => {
+    const auth_code = req.body.auth_code;
+    const code_verifier = req.body.code_verifier;
+    if (auth_code && code_verifier && authStorage.has(auth_code)) {
+        const incoming_code_verifier = crypto.createHash('sha256').update(code_verifier).digest('hex');
+        const stored_code_verifier = authStorage.get(auth_code)?.challenge_code;
+        if (incoming_code_verifier === stored_code_verifier) {
+            const access_token = authStorage.get(auth_code)?.access_token;
+            authStorage.delete(auth_code);
+            return res.status(200).send({
+                access_token
+            }).end();
+        } else {
+            authStorage.delete(auth_code);
+            return res.status(403).send({
+                error: 'Invalid verification code code'
+            }).end();
+        }
+    } else {
+        return res.status(403).send({
+            error: 'Invalid or missing input params'
+        }).end();
+    }
+
 });
 
 /** GET route - presents an html page which sends authentication data back to Frontend */
