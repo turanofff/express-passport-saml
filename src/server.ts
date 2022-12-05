@@ -4,6 +4,7 @@ import express from 'express';
 import session from 'express-session';
 import passport from 'passport';
 import crypto from 'crypto';
+import { generateBearerToken, urlDecodeBase64 } from './utils';
 import config from './config/config';
 import './config/passport';
 
@@ -56,24 +57,11 @@ router.get('/', (req, res, next) => {
     return res.status(200).send(body).end();
 });
 
-
-/** Decodes URL safe chars into Base64 allowed chars */
-const urlDecodeBase64 = (input: string) => {
-    const b64Chars: { [index: string]: string } = { '-': '+', '_': '/', '.': '=' };
-    return decodeURIComponent(
-        Buffer.from(input).toString()
-          .split('')
-          .map(c => {
-            return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-          })
-          .join('')
-      ).replace(/[-_.]/g, (m: string) => b64Chars[m]);;
-  }
   
 /** GET route stars authentication session with SAML Identity Provider */
 router.get('/login', (req:any, res:any, next:any) => {
-    const state = req.query.state;
-    const challenge_code = urlDecodeBase64(req.query.challenge_code);
+    const state = req?.query?.state;
+    const challenge_code = urlDecodeBase64(req?.query?.challenge_code);
     console.log(challenge_code)
     if (state && challenge_code) {
         userStateStorage.delete(state); // For testing purposes. Makes sure I can reuse state (not to be used in prod implementations)
@@ -95,15 +83,11 @@ router.post('/login', passport.authenticate('saml', config.saml.options), (req, 
 
     const redirectionURL = 'complete';
     const userObject:any = req.user;
-    // Creating demo bearer token
+
     const payloadObject = { custom: { email: userObject.nameID } }; // This is payload from SAML Request
-    const jwtObject = {
-        alg: 'eyJhbGciOiJIUzI1NiJ9',
-        payload: Buffer.from(JSON.stringify(payloadObject)).toString('base64'),
-        signature: '3Yr6cayJai6LPPYe85i_WWx3cU' // Token is actually not signed, it's only for demo purposes.
-    }
-    const access_token=`${jwtObject.alg}.${jwtObject.payload}.${jwtObject.signature}`;
+    const access_token = generateBearerToken(payloadObject);
     const auth_code = crypto.randomBytes(12).toString('hex');
+    
     if (challenge_code) {
         userStateStorage.delete(state);
         authStorage.set(auth_code, { challenge_code, access_token, expires: new Date().getTime()+5*60*1000});
@@ -118,7 +102,7 @@ router.post('/token', (req, res, next) => {
     const auth_code = req.body.auth_code;
     const code_verifier = req.body.code_verifier;
     if (auth_code && code_verifier && authStorage.has(auth_code)) {
-        
+
         const incoming_code_verifier = crypto.createHash('sha256').update(code_verifier).digest('base64');
         const stored_code_verifier = authStorage.get(auth_code)?.challenge_code;
 

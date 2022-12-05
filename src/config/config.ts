@@ -23,7 +23,8 @@ const config = {
         baseURL: process.env.FRONTEND_ENDPOINT,
         loginRoute: 'login',
         samlRoute: 'login'
-    }
+    },
+    jwtSecret: process.env.TOKEN_SECRET ?? ''
 };
 
 export default config;
