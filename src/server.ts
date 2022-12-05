@@ -12,7 +12,7 @@ const router = express();
 /** Stores state as a key and a challenge code for a given authentication request */
 const userStateStorage = new Map<string, { challenge_code: string, expires: number }>();
 
-/** Stores auth_code as a key; a challenge code and access token */
+/** Stores auth_code as a key; a challenge code and access token a.k.a. bearer token */
 const authStorage = new Map<string, { challenge_code: string, access_token?: string, expires: number}>();
 
 /** Server Handling */
