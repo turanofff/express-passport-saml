@@ -78,7 +78,7 @@ router.get('/login', (req:any, res:any, next:any) => {
 
 /** POST route handles response from SAML Identity Provider */
 router.post('/login', passport.authenticate('saml', config.saml.options), (req, res, next) => {
-    const state = req.body.RelayState; // this is how we get state parameter from SAML Response
+    const state = req?.body?.RelayState; // this is how we get state parameter from SAML Response
     const challenge_code = userStateStorage.get(state)?.challenge_code; // We will transfer challenge code from userStateStorage to authStorage
 
     const redirectionURL = 'complete';
@@ -87,7 +87,7 @@ router.post('/login', passport.authenticate('saml', config.saml.options), (req, 
     const payloadObject = { custom: { email: userObject.nameID } }; // This is payload from SAML Request
     const access_token = generateBearerToken(payloadObject);
     const auth_code = crypto.randomBytes(12).toString('hex');
-    
+
     if (challenge_code) {
         userStateStorage.delete(state);
         authStorage.set(auth_code, { challenge_code, access_token, expires: new Date().getTime()+5*60*1000});
@@ -98,9 +98,9 @@ router.post('/login', passport.authenticate('saml', config.saml.options), (req, 
     }
 });
 
-router.post('/token', (req, res, next) => {
-    const auth_code = req.body.auth_code;
-    const code_verifier = req.body.code_verifier;
+router.post('/token', (req, res) => {
+    const auth_code = req?.body?.auth_code;
+    const code_verifier = req?.body?.code_verifier;
     if (auth_code && code_verifier && authStorage.has(auth_code)) {
 
         const incoming_code_verifier = crypto.createHash('sha256').update(code_verifier).digest('base64');
@@ -127,7 +127,7 @@ router.post('/token', (req, res, next) => {
 });
 
 /** GET route - presents an html page which sends authentication data back to Frontend */
-router.get('/complete', (req, res, next) => {
+router.get('/complete', (req, res) => {
     const body = fs.readFileSync('./src/html/complete.html', 'utf-8');
     return res.status(200).send(body).end();
 });
