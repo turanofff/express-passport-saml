@@ -62,7 +62,7 @@ router.get('/', (req, res, next) => {
 router.get('/login', (req:any, res:any, next:any) => {
     const state = req?.query?.state;
     const challenge_code = urlDecodeBase64(req?.query?.challenge_code);
-    console.log(challenge_code)
+
     if (state && challenge_code) {
         userStateStorage.delete(state); // For testing purposes. Makes sure I can reuse state (not to be used in prod implementations)
         userStateStorage.set(state,{challenge_code, expires: new Date().getTime()+5*60*1000 }) // Set expiry to 5 mins from now
@@ -102,6 +102,7 @@ router.post('/login', passport.authenticate('saml', config.saml.options), (req, 
 router.post('/token', (req, res) => {
     const auth_code = req?.body?.auth_code;
     const code_verifier = req?.body?.code_verifier;
+
     if (auth_code && code_verifier && authStorage.has(auth_code)) {
 
         const incoming_code_verifier = crypto.createHash('sha256').update(code_verifier).digest('base64');
