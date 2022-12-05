@@ -98,6 +98,7 @@ router.post('/login', passport.authenticate('saml', config.saml.options), (req, 
     }
 });
 
+/** POST route handles exchange of auth_code and code_verifier for access token */
 router.post('/token', (req, res) => {
     const auth_code = req?.body?.auth_code;
     const code_verifier = req?.body?.code_verifier;
@@ -132,7 +133,7 @@ router.get('/complete', (req, res) => {
     return res.status(200).send(body).end();
 });
 
-// Cleaning up expired states and auth_code
+/** Cleaning up expired states and auth_code */ 
 setInterval(() => {
     const currentDate = new Date().getTime();
     for (const [key, value] of userStateStorage.entries()) {
