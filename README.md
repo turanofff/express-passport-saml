@@ -20,6 +20,8 @@ This project is based on Node.JS and Express + TypeScript
 
 `[POST]` `/login` - endpoint for accepting authentication response from SAML IDP
 
+`[POST]` `/token` - endpoint for exchanging auth_code and code_verifier for access token
+
 ## Tests
 
 This project contains no unit tests. 
