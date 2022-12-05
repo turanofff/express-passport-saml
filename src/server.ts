@@ -10,10 +10,10 @@ import './config/passport';
 const router = express();
 
 /** Stores state as a key and a challenge code for a given authentication request */
-const userStateStorage = new Map<string, { challenge_code: string, expires: number }>(); // TODO: Implement expiry mechanism
+const userStateStorage = new Map<string, { challenge_code: string, expires: number }>();
 
 /** Stores auth_code as a key; a challenge code and access token */
-const authStorage = new Map<string, { challenge_code: string, access_token?: string, expires: number}>(); // TODO: Implement expiry mechanism
+const authStorage = new Map<string, { challenge_code: string, access_token?: string, expires: number}>();
 
 /** Server Handling */
 const httpServer = http.createServer(router);
@@ -77,23 +77,22 @@ router.get('/login', (req:any, res:any, next:any) => {
 /** POST route handles response from SAML Identity Provider */
 router.post('/login', passport.authenticate('saml', config.saml.options), (req, res, next) => {
     const state = req.body.RelayState; // this is how we get state parameter from SAML Response
-    const challenge_code = userStateStorage.get(state)?.challenge_code;
+    const challenge_code = userStateStorage.get(state)?.challenge_code; // We will transfer challenge code from userStateStorage to authStorage
 
     const redirectionURL = 'complete';
     const userObject:any = req.user;
     // Creating demo bearer token
-    const payloadObject = { custom: { email: userObject.nameID } };
+    const payloadObject = { custom: { email: userObject.nameID } }; // This is payload from SAML Request
     const jwtObject = {
         alg: 'eyJhbGciOiJIUzI1NiJ9',
         payload: Buffer.from(JSON.stringify(payloadObject)).toString('base64'),
-        signature: '3Yr6cayJai6LPPYe85i_WWx3cU'
+        signature: '3Yr6cayJai6LPPYe85i_WWx3cU' // Token is actually not signed, it's only for demo purposes.
     }
     const access_token=`${jwtObject.alg}.${jwtObject.payload}.${jwtObject.signature}`;
     const auth_code = crypto.randomBytes(12).toString('hex');
     if (challenge_code) {
         userStateStorage.delete(state);
         authStorage.set(auth_code, { challenge_code, access_token, expires: new Date().getTime()+5*60*1000});
-
         res.status(302).redirect(`${redirectionURL}?frontend=${config.frontend.baseURL}&saml=${config.frontend.samlRoute}&auth_code=${auth_code}&state=${state}`);
     } else {
         const body = fs.readFileSync('./src/html/generic-error.html', 'utf-8');
@@ -132,5 +131,21 @@ router.get('/complete', (req, res, next) => {
     const body = fs.readFileSync('./src/html/complete.html', 'utf-8');
     return res.status(200).send(body).end();
 });
+
+// Cleaning up expired states and auth_code
+setInterval(() => {
+    const currentDate = new Date().getTime();
+    for (const [key, value] of userStateStorage.entries()) {
+        if (currentDate > value.expires) {
+            userStateStorage.delete(key);
+        }
+      }
+    for (const [key, value] of authStorage.entries()) {
+        if (currentDate > value.expires) {
+            authStorage.delete(key);
+        }
+      }
+
+}, 60*1000);
 
 httpServer.listen(config.server.port, () => console.info(`Server is running on port ${config.server.port}`));
