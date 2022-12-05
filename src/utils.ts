@@ -23,3 +23,11 @@ export const urlDecodeBase64 = (input: string) => {
 export const generateBearerToken = (payload: any) => {
   return jwt.sign(payload, config.jwtSecret, { expiresIn: '1800s' });
 }
+
+export const parseState = (payload: any) => {
+  try {
+    return JSON.parse(decodeURIComponent(payload));
+  } catch (err) {
+    // Do nothing cuz we couldn't parse url component
+  }
+}
