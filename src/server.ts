@@ -58,14 +58,10 @@ router.get('/', (req, res, next) => {
 /** GET route stars authentication session with SAML Identity Provider */
 router.get('/login', (req:any, res:any, next:any) => {
     const state = req?.query?.state;
-    const challenge_code = urlDecodeBase64(req?.query?.challenge_code);
+    const challenge_code = req?.query?.challenge_code;
 
     if (state && challenge_code) {
-        const relayState = {
-            state,
-            challenge_code
-        }
-        const samlOptions = {...config.saml.options, additionalParams: { RelayState: encodeURIComponent(JSON.stringify(relayState))} }
+        const samlOptions = {...config.saml.options, additionalParams: { RelayState: `${state}.${challenge_code}`} }
         passport.authenticate('saml', samlOptions)(req, res, next);
     } else {
         const body = fs.readFileSync('./src/html/no-state-error.html', 'utf-8');
@@ -77,9 +73,9 @@ router.get('/login', (req:any, res:any, next:any) => {
 /** POST route handles response from SAML Identity Provider */
 router.post('/login', passport.authenticate('saml', config.saml.options), (req, res, next) => {
     const relayState = parseState(req?.body?.RelayState); // this is how we get state parameter from SAML Response
-
+    
     const state = relayState?.state;
-    const challenge_code = relayState?.challenge_code;
+    const challenge_code = urlDecodeBase64(relayState?.challenge_code);
 
     const redirectionURL = 'complete';
     const userObject:any = req.user;

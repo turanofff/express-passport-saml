@@ -26,7 +26,12 @@ export const generateBearerToken = (payload: any) => {
 
 export const parseState = (payload: any) => {
   try {
-    return JSON.parse(decodeURIComponent(payload));
+    const paramArray = payload.split('.');
+    const parsedPayload = {
+      state: paramArray[0],
+      challenge_code: paramArray[1],
+    }
+    return parsedPayload;
   } catch (err) {
     // Do nothing cuz we couldn't parse url component
   }
