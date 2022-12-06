@@ -3,7 +3,7 @@ import config from './config/config';
 
 /** Decodes URL safe chars into Base64 allowed chars */
 export const urlDecodeBase64 = (input: string) => {
-    const b64Chars: { [index: string]: string } = { '-': '+', '_': '/', '.': '=' };
+    const b64Chars: { [index: string]: string } = { '-': '+', '_': '/' };
     try {
       return decodeURIComponent(
         Buffer.from(input).toString()

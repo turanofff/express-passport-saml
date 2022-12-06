@@ -104,7 +104,10 @@ router.post('/token', (req, res) => {
 
     if (auth_code && code_verifier && authStorage.has(auth_code)) {
 
-        const incoming_code_verifier = crypto.createHash('sha256').update(code_verifier).digest('base64');
+        const incoming_code_verifier = crypto.createHash('sha256')
+            .update(code_verifier)
+            .digest('base64')
+            .replace(/=/g,''); // Removing padding symbols "=" 
         const stored_code_verifier = authStorage.get(auth_code)?.challenge_code;
 
         if (incoming_code_verifier === stored_code_verifier) {
